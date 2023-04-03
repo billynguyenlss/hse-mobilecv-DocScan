@@ -1,0 +1,18 @@
+<resources>
+    <string name="app_name">Assignment DocScan</string>
+    <string name="action_OpenGallery">Open Image File</string>
+    <string name="action_TakePhoto">Take Photo from Camera</string>
+    <string name="action_GetFrameFromVideo">Get frame from video</string>
+    <string name="action_saveToGallery">Save image to Gallery</string>
+    <string name="action_binarization">Binarization</string>
+    <string name="action_filtering">Gaussian Filtering</string>
+    <string name="action_noiseRemoving">Noise Removing</string>
+    <string name="action_contrastEnhancement">Contrast Enhancement</string>
+    <string name="action_ExtractPointsOfInterest">Extract Points Of Interest</string>
+    <string name="action_MatchImages">Match Images</string>
+    <string name="action_StitchImages">Panorama</string>
+    <string name="dummy_button">Dummy Button</string>
+    <string name="dummy_content">DUMMY\nCONTENT</string>
+    <!-- TODO: Remove or change this placeholder text -->
+    <string name="hello_blank_fragment">Hello blank fragment</string>
+</resources>

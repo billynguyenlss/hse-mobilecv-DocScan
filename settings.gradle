@@ -1,0 +1,6 @@
+//def opencvsdk='D:/src_code/opencv/opencv/build_android/OpenCV-android-sdk'
+def opencvsdk='/home/billynguyen/project/mobile-cv/hse-course/OpenCV-android-sdk'
+include ':opencv'
+project(':opencv').projectDir = new File(opencvsdk + '/sdk')
+include ':app'
+rootProject.name = "AssignmentDocScan"

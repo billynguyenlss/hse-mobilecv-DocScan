@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <item
+        android:id="@+id/action_openGallery"
+        app:showAsAction="never"
+        android:title="@string/action_OpenGallery"/>
+    <item
+        android:id="@+id/action_takePhoto"
+        app:showAsAction="never"
+        android:title="@string/action_TakePhoto" />
+    <item
+        android:id="@+id/action_getFrameFromVideo"
+        app:showAsAction="never"
+        android:title="@string/action_GetFrameFromVideo"/>
+    <item
+        android:id="@+id/action_saveImageToGallery"
+        app:showAsAction="never"
+        android:title="@string/action_saveToGallery"/>
+    <item
+        android:id="@+id/action_binarization"
+        app:showAsAction="never"
+        android:title="@string/action_binarization"/>
+    <item
+        android:id="@+id/action_filtering"
+        app:showAsAction="never"
+        android:title="@string/action_filtering"/>
+    <item
+        android:id="@+id/action_noiseRemoving"
+        app:showAsAction="never"
+        android:title="@string/action_noiseRemoving"/>
+    <item
+        android:id="@+id/action_contrastEnhancement"
+        app:showAsAction="never"
+        android:title="@string/action_contrastEnhancement"/>
+    <item
+        android:id="@+id/action_extractpoi"
+        app:showAsAction="never"
+        android:title="@string/action_ExtractPointsOfInterest"/>
+    <item
+        android:id="@+id/action_matchimages"
+        app:showAsAction="never"
+        android:title="@string/action_MatchImages"/>
+    <item
+        android:id="@+id/action_stitchimages"
+        app:showAsAction="never"
+        android:title="@string/action_StitchImages"/>
+
+</menu>
