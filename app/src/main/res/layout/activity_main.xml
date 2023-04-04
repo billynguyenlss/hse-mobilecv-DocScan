@@ -16,18 +16,24 @@
         android:elevation="4dp"
         android:theme="@style/ThemeOverlay.AppCompat.ActionBar"
         app:popupTheme="@style/ThemeOverlay.AppCompat.Light" />
-
+    <Button
+        android:id="@+id/button_selectFrame"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Select Frame"/>
+    <Button
+        android:id="@+id/button_closeVideo"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Close Video"/>
     <VideoView
         android:id="@+id/inputVideoView"
         android:layout_width="match_parent"
-        android:layout_height="150dp"
-        android:layout_alignBottom="@+id/my_toolbar"
+        android:layout_height="wrap_content"
+
+        android:layout_gravity="center" />
         />
-        <Button
-            android:id="@+id/button_selectFrame"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Select Frame"/>
+
 
 
     <ImageView

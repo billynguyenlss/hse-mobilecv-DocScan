@@ -10,15 +10,7 @@ import static org.opencv.core.CvType.CV_8UC3;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
-import androidx.camera.camera2.Camera2Config;
-import androidx.camera.core.Camera;
-import androidx.camera.core.CameraSelector;
-import androidx.camera.core.CameraXConfig;
-import androidx.camera.core.ImageCapture;
-import androidx.camera.core.Preview;
-import androidx.camera.core.impl.PreviewConfig;
-import androidx.camera.lifecycle.ProcessCameraProvider;
-import androidx.camera.view.PreviewView;
+
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
@@ -58,8 +50,6 @@ import android.widget.MediaController;
 import android.widget.Toast;
 import android.widget.VideoView;
 
-import com.google.common.util.concurrent.ListenableFuture;
-
 import org.opencv.android.BaseLoaderCallback;
 import org.opencv.android.CameraActivity;
 import org.opencv.android.CameraBridgeViewBase;
@@ -93,6 +83,7 @@ public class MainActivity extends AppCompatActivity {
     private VideoView videoView;
     private Uri videoUri=null;
     private Button buttonSelectFrame;
+    private Button buttonCloseVideo;
     private MediaMetadataRetriever mediaMetadataRetriever;
     private MediaController myMediaController;
 
@@ -133,7 +124,7 @@ public class MainActivity extends AppCompatActivity {
                             corners.remove(0);
                         Mat sampleImageCopy=sampledImage.clone();
                         for(org.opencv.core.Point c : corners)
-                            Imgproc.circle(sampleImageCopy, c, (int) 5, new Scalar(0, 0, 255), 2);
+                            Imgproc.circle(sampleImageCopy, c, (int) 15, new Scalar(0, 0, 255), 2);
                         displayImage(sampleImageCopy);
                     }
                 }
@@ -143,8 +134,22 @@ public class MainActivity extends AppCompatActivity {
 
 
         videoView=(VideoView) findViewById(R.id.inputVideoView);
+        videoView.setVisibility(View.GONE);
 
         buttonSelectFrame=(Button)findViewById(R.id.button_selectFrame);
+        buttonSelectFrame.setVisibility(View.GONE);
+
+        buttonCloseVideo=(Button)findViewById(R.id.button_closeVideo);
+        buttonCloseVideo.setVisibility(View.GONE);
+        buttonCloseVideo.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                videoView.setVisibility(View.GONE);
+                buttonSelectFrame.setVisibility(View.GONE);
+                buttonCloseVideo.setVisibility(View.GONE);
+            }
+        });
+
         mediaMetadataRetriever = new MediaMetadataRetriever();
         buttonSelectFrame.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -474,6 +479,9 @@ public class MainActivity extends AppCompatActivity {
                 Log.d(TAG, "videoUri: " + videoUri.toString());
                 mediaMetadataRetriever.setDataSource(MainActivity.this, videoUri);
                 videoView.setVideoURI(videoUri);
+                videoView.setVisibility(View.VISIBLE);
+                buttonSelectFrame.setVisibility(View.VISIBLE);
+                buttonCloseVideo.setVisibility(View.VISIBLE);
                 videoView.start();
             }
         }
@@ -1145,7 +1153,7 @@ public class MainActivity extends AppCompatActivity {
         Imgproc.GaussianBlur(grayImage,grayImage,new Size(3,3),0,0);
         Imgproc.GaussianBlur(grayImage,grayImage,new Size(3,3),0,0);
         Mat canny = new Mat();
-        Imgproc.Canny(grayImage, canny, 50, 200);
+        Imgproc.Canny(grayImage, canny, 50, 150);
         Imgproc.dilate(canny, canny, Imgproc.getStructuringElement(Imgproc.MORPH_ELLIPSE, new Size(5,5)));
 
         // contour detection
@@ -1174,13 +1182,12 @@ public class MainActivity extends AppCompatActivity {
         MatOfPoint extractedCorners = new MatOfPoint();
         Mat drawingC1 = new Mat();
         Imgproc.cvtColor(drawing, drawingC1, Imgproc.COLOR_RGB2GRAY, 0);
-//        Imgproc.goodFeaturesToTrack(drawingC1, extractedCorners, 25, 0.1, 10);
-        int minDistance = (int)(imageView.getWidth()*0.2);
+
+        int minDistance = (int)(imageView.getWidth()*0.1);
         Imgproc.goodFeaturesToTrack(drawingC1, extractedCorners, 4, 0.01, minDistance, new Mat(),
-                3, 3, false, 0.04);
+                3, 3, true, 0.04);
         List<Point> extract = Arrays.asList(extractedCorners.toArray());
         Toast.makeText(this, "extract:" + extract.size(), Toast.LENGTH_LONG).show();
-
 
         int left=(imageView.getWidth()-sampledImage.width())/2;
         int top=(imageView.getHeight()-sampledImage.height())/2;
@@ -1188,37 +1195,14 @@ public class MainActivity extends AppCompatActivity {
         int bottom=(imageView.getHeight()+sampledImage.height())/2;
 
         for (Point c: extract){
-            if (c.x >= left && c.x <= right && c.y >= top && c.y<=bottom){
-                int projectedX = (int)c.x - left;
-                int projectedY = (int)c.y - top;
-                Point corner = new Point(projectedX, projectedY);
-                corners.add(corner);
-                if (corners.size()>4){
-                    corners.remove(0);
-                }
-            }
+            Point corner = new Point(c.x, c.y);
+            corners.add(corner);
         }
         Mat out = sampledImage.clone();
         for (Point c: corners){
             Imgproc.circle(out, c, (int) 15, new Scalar(0, 0, 255), 3);
         }
 
-//        if(event.getX()>=left && event.getX()<=right && event.getY()>=top && event.getY()<=bottom) {
-//            int projectedX = (int)event.getX()-left;
-//            int projectedY = (int)event.getY()-top;
-//            org.opencv.core.Point corner = new org.opencv.core.Point(projectedX, projectedY);
-//            corners.add(corner);
-//            if(corners.size()>4)
-//                corners.remove(0);
-//            Mat sampleImageCopy=sampledImage.clone();
-//            for(org.opencv.core.Point c : corners)
-//                Imgproc.circle(sampleImageCopy, c, (int) 5, new Scalar(0, 0, 255), 2);
-//            displayImage(sampleImageCopy);
-//        }
-
-//        Mat out = sampledImage.clone();
-//        for(org.opencv.core.Point c : corners)
-//            Imgproc.circle(out.clone(), c, (int) 10, new Scalar(0, 0, 255), 5);
         if (corners.size()==4){
             perspectiveTransform();
         } else {
