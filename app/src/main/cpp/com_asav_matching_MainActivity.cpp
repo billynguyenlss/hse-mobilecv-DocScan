@@ -6,6 +6,7 @@
 #include <opencv2/xfeatures2d.hpp>
 #include <opencv2/stitching.hpp>
 #include <opencv2/ximgproc.hpp>
+#include <opencv2/ximgproc.hpp>
 
 #include <string>
 #include <vector>
@@ -60,5 +61,14 @@ JNIEXPORT void JNICALL Java_com_asav_matching_MainActivity_stitchImages
     LOGD("Java_com_asav_matching_MainActivity_stitchImages -- END");
 
 }
-
+JNIEXPORT void JNICALL Java_com_asav_matching_MainActivity_niBlackThreshold
+        (JNIEnv *, jclass, jlong addrMatIn, jlong addrMatOut){
+    LOGD("Java_com_asav_processimage_MainActivity_niBlackThreshold -- BEGIN");
+    cv::Mat& mIn = *(cv::Mat*)addrMatIn;
+    cv::Mat grayImg;
+    cv::cvtColor(mIn,grayImg,cv::COLOR_RGBA2GRAY);
+    cv::Mat& mOut = *(cv::Mat*)addrMatOut;
+    cv::ximgproc::niBlackThreshold(grayImg,mOut,255, cv::THRESH_BINARY, 11,cv::ximgproc::BINARIZATION_NIBLACK  );
+    LOGD("Java_com_asav_processimage_MainActivity_niBlackThreshold -- END");
+}
 

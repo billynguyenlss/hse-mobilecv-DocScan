@@ -8,7 +8,6 @@
     android:orientation="vertical"
     android:visibility="visible"
     tools:context=".MainActivity">
-
     <androidx.appcompat.widget.Toolbar
         android:id="@+id/my_toolbar"
         android:layout_width="match_parent"
@@ -21,22 +20,24 @@
     <VideoView
         android:id="@+id/inputVideoView"
         android:layout_width="match_parent"
-        android:layout_height="300dp"
+        android:layout_height="150dp"
+        android:layout_alignBottom="@+id/my_toolbar"
         />
-    <Button
-        android:id="@+id/button_selectFrame"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Select Frame"/>
+        <Button
+            android:id="@+id/button_selectFrame"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Select Frame"/>
 
 
     <ImageView
         android:id="@+id/inputImageView"
-        android:layout_width="fill_parent"
+        android:layout_width="match_parent"
         android:layout_height="fill_parent"
+        android:layout_below="@+id/button_selectFrame"
         android:layout_marginLeft="0dp"
         android:layout_marginTop="0dp"
         android:scaleType="fitCenter" />
 
-
 </LinearLayout>
+

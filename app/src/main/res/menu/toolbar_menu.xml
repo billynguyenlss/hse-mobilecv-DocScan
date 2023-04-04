@@ -34,13 +34,13 @@
         app:showAsAction="never"
         android:title="@string/action_contrastEnhancement"/>
     <item
-        android:id="@+id/action_extractpoi"
+        android:id="@+id/action_manual_perspective_transform"
         app:showAsAction="never"
-        android:title="@string/action_ExtractPointsOfInterest"/>
+        android:title="@string/action_manualPerspectiveTransform"/>
     <item
-        android:id="@+id/action_matchimages"
+        android:id="@+id/action_autoPerspectiveTransform"
         app:showAsAction="never"
-        android:title="@string/action_MatchImages"/>
+        android:title="@string/action_autoPerspectiveTransform"/>
     <item
         android:id="@+id/action_stitchimages"
         app:showAsAction="never"

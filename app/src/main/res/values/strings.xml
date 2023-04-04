@@ -10,9 +10,11 @@
     <string name="action_contrastEnhancement">Contrast Enhancement</string>
     <string name="action_ExtractPointsOfInterest">Extract Points Of Interest</string>
     <string name="action_MatchImages">Match Images</string>
-    <string name="action_StitchImages">Panorama</string>
+    <string name="action_StitchImages">Stitching</string>
     <string name="dummy_button">Dummy Button</string>
     <string name="dummy_content">DUMMY\nCONTENT</string>
+    <string name="action_manualPerspectiveTransform">Manual Perspective Transform</string>
+    <string name="action_autoPerspectiveTransform">Auto Perspective Transform</string>
     <!-- TODO: Remove or change this placeholder text -->
     <string name="hello_blank_fragment">Hello blank fragment</string>
 </resources>

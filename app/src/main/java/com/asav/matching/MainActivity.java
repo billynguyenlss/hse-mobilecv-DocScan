@@ -3,7 +3,10 @@ package com.asav.matching;
 import static android.app.PendingIntent.getActivity;
 
 import static org.opencv.core.Core.DFT_SCALE;
+import static org.opencv.core.CvType.CV_32FC1;
 import static org.opencv.core.CvType.CV_8U;
+import static org.opencv.core.CvType.CV_8UC1;
+import static org.opencv.core.CvType.CV_8UC3;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
@@ -19,6 +22,7 @@ import androidx.camera.view.PreviewView;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.ActivityNotFoundException;
 import android.content.ContentValues;
@@ -46,6 +50,7 @@ import android.util.Rational;
 import android.view.Display;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.MotionEvent;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
@@ -65,6 +70,7 @@ import org.opencv.calib3d.Calib3d;
 import org.opencv.core.*;
 import org.opencv.features2d.*;
 import org.opencv.imgproc.Imgproc;
+import org.opencv.utils.Converters;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -77,6 +83,7 @@ import java.util.*;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.Arrays;
 
 public class MainActivity extends AppCompatActivity {
     /** Tag for the {@link Log}. */
@@ -92,10 +99,12 @@ public class MainActivity extends AppCompatActivity {
     private Mat sampledImage=null;
     private TfLiteFeatureExtractor featureExtractor=null;
     private boolean useSuperpoint=true;
+    private ArrayList<org.opencv.core.Point> corners=new ArrayList<org.opencv.core.Point>();
 
     private static native void extractPointsOfInterest(long matAddrIn, long matAddrOut);
     private static native void stitchImages(long matAddrIn1,long matAddrIn2, long matAddrOut);
-
+    private static native void niBlackThreshold(long matAddrIn, long matAddrOut);
+    @SuppressLint("ClickableViewAccessibility")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -103,6 +112,36 @@ public class MainActivity extends AppCompatActivity {
         Toolbar toolbar = (Toolbar) findViewById(R.id.my_toolbar);
         setSupportActionBar(toolbar);
         imageView=(ImageView)findViewById(R.id.inputImageView);
+        imageView.setOnTouchListener(new View.OnTouchListener() {
+            @Override
+            public boolean onTouch(View view, MotionEvent event) {
+                Log.i(TAG, "event.getX(), event.getY(): " + event.getX() +" "+ event.getY());
+                if(sampledImage!=null) {
+                    Log.i(TAG, "sampledImage.width(), sampledImage.height(): " + sampledImage.width() +" "+ sampledImage.height());
+                    Log.i(TAG, "view.getWidth(), view.getHeight(): " + view.getWidth() +" "+ view.getHeight());
+                    int left=(view.getWidth()-sampledImage.width())/2;
+                    int top=(view.getHeight()-sampledImage.height())/2;
+                    int right=(view.getWidth()+sampledImage.width())/2;
+                    int bottom=(view.getHeight()+sampledImage.height())/2;
+                    Log.i(TAG, "left: " + left +" right: "+ right +" top: "+ top +" bottom:"+ bottom);
+                    if(event.getX()>=left && event.getX()<=right && event.getY()>=top && event.getY()<=bottom) {
+                        int projectedX = (int)event.getX()-left;
+                        int projectedY = (int)event.getY()-top;
+                        org.opencv.core.Point corner = new org.opencv.core.Point(projectedX, projectedY);
+                        corners.add(corner);
+                        if(corners.size()>4)
+                            corners.remove(0);
+                        Mat sampleImageCopy=sampledImage.clone();
+                        for(org.opencv.core.Point c : corners)
+                            Imgproc.circle(sampleImageCopy, c, (int) 5, new Scalar(0, 0, 255), 2);
+                        displayImage(sampleImageCopy);
+                    }
+                }
+                return false;
+            }
+        });
+
+
         videoView=(VideoView) findViewById(R.id.inputVideoView);
 
         buttonSelectFrame=(Button)findViewById(R.id.button_selectFrame);
@@ -345,16 +384,18 @@ public class MainActivity extends AppCompatActivity {
                     bilateral();
                 }
                 return true;
-            case R.id.action_extractpoi:
+            case R.id.action_manual_perspective_transform:
                 if(isImageLoaded()) {
                     Toast.makeText(this,"perform action_extract Point of Interests", Toast.LENGTH_LONG).show();
                     // This function has some unknown error and not debug yet.
-//                    extractFeatures();
+                    perspectiveTransform();
                 }
                 return true;
-            case R.id.action_matchimages:
+            case R.id.action_autoPerspectiveTransform:
                 if(isImageLoaded()) {
-                    openImageFile(SELECT_TEMPLATE_PICTURE_MATCH);
+                    Toast.makeText(this,"perform auto perspective transform", Toast.LENGTH_LONG).show();
+//                    autoPerspectiveTransform();
+                    findROI();
                 }
                 return true;
             case R.id.action_stitchimages:
@@ -819,6 +860,7 @@ public class MainActivity extends AppCompatActivity {
         }
         else{
 //            OpenCVNativeCaller.niBlackThreshold(sampledImage.getNativeObjAddr(),binImage.getNativeObjAddr());
+            niBlackThreshold(sampledImage.getNativeObjAddr(),binImage.getNativeObjAddr());
         }
         displayImage(binImage);
     }
@@ -1069,4 +1111,224 @@ public class MainActivity extends AppCompatActivity {
         displayImage(outImage);
     }
 
+    private void findROI(){
+        // get 4 corners
+        corners.clear();
+        Mat grayImage = new Mat();
+        Mat binImage = new Mat();
+        Mat sampledImageCopied = new Mat();
+
+        int morph_size = 2;
+        Point anchor = new Point(-1,-1);
+        Mat element = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(2*morph_size+1, 2*morph_size*1));
+        Imgproc.morphologyEx(sampledImage, sampledImageCopied, Imgproc.MORPH_CLOSE, element, anchor, 5);
+        Imgproc.morphologyEx(sampledImageCopied, sampledImageCopied, Imgproc.MORPH_OPEN, element, anchor, 5);
+
+        // grabcut
+        Rect rect = new Rect(5,5 ,sampledImage.cols()-20, sampledImage.rows() - 20);
+        Mat result = new Mat(), bgModel = new Mat(), fgModel = new Mat();
+        Mat img2 = new Mat();
+//        sampledImageCopied.convertTo(img2, CV_8UC3);
+//        Imgproc.grabCut(img2, result, rect, bgModel, fgModel, 1, Imgproc.GC_INIT_WITH_RECT);
+
+        Imgproc.cvtColor(sampledImageCopied, grayImage, Imgproc.COLOR_RGB2GRAY);
+        Imgproc.GaussianBlur(grayImage,grayImage,new Size(5,5),0,0);
+        Imgproc.GaussianBlur(grayImage,grayImage,new Size(5,5),0,0);
+        Imgproc.GaussianBlur(grayImage,grayImage,new Size(5,5),0,0);
+
+        Imgproc.adaptiveThreshold(grayImage, binImage, 255, Imgproc.ADAPTIVE_THRESH_GAUSSIAN_C, Imgproc.THRESH_BINARY, 15, 12);
+        Imgproc.threshold(grayImage,binImage,128,255,Imgproc.THRESH_BINARY);
+        Imgproc.threshold(grayImage,binImage,0,255,Imgproc.THRESH_BINARY+Imgproc.THRESH_OTSU);
+
+        // edge detection
+        Imgproc.cvtColor(sampledImageCopied, grayImage, Imgproc.COLOR_BGR2GRAY);
+        Imgproc.GaussianBlur(grayImage,grayImage,new Size(3,3),0,0);
+        Imgproc.GaussianBlur(grayImage,grayImage,new Size(3,3),0,0);
+        Mat canny = new Mat();
+        Imgproc.Canny(grayImage, canny, 50, 200);
+        Imgproc.dilate(canny, canny, Imgproc.getStructuringElement(Imgproc.MORPH_ELLIPSE, new Size(5,5)));
+
+        // contour detection
+        List<MatOfPoint> contours = new ArrayList<>();
+        Mat hierarchy = new Mat();
+        Imgproc.findContours(canny, contours, hierarchy, Imgproc.RETR_TREE, Imgproc.CHAIN_APPROX_SIMPLE);
+
+        if (contours.size() == 0){
+            return;
+        }
+        contours.sort(new Comparator<MatOfPoint>() {
+            public int compare(MatOfPoint c1, MatOfPoint c2) {
+                return (int) (Imgproc.contourArea(c2)- Imgproc.contourArea(c1));
+            }
+        });
+
+        Mat drawing = Mat.zeros(canny.size(), CvType.CV_8UC3);
+        Random rng = new Random(12345);
+        Scalar color = new Scalar(rng.nextInt(256), rng.nextInt(256), rng.nextInt(256));
+        Imgproc.drawContours(drawing, contours, 0, new Scalar(255, 255, 255), -1, Imgproc.LINE_8, hierarchy, 0, new Point());
+//        Imgproc.morphologyEx(drawing, drawing, Imgproc.MORPH_CLOSE, element, anchor, 3);
+        Imgproc.erode(drawing, drawing, element, anchor, 2);
+        Imgproc.dilate(drawing, drawing, element, anchor, 2);
+//        Imgproc.morphologyEx(sampledImage, sampledImageCopied, Imgproc.MORPH_CLOSE, element, anchor, 5);
+
+        MatOfPoint extractedCorners = new MatOfPoint();
+        Mat drawingC1 = new Mat();
+        Imgproc.cvtColor(drawing, drawingC1, Imgproc.COLOR_RGB2GRAY, 0);
+//        Imgproc.goodFeaturesToTrack(drawingC1, extractedCorners, 25, 0.1, 10);
+        int minDistance = (int)(imageView.getWidth()*0.2);
+        Imgproc.goodFeaturesToTrack(drawingC1, extractedCorners, 4, 0.01, minDistance, new Mat(),
+                3, 3, false, 0.04);
+        List<Point> extract = Arrays.asList(extractedCorners.toArray());
+        Toast.makeText(this, "extract:" + extract.size(), Toast.LENGTH_LONG).show();
+
+
+        int left=(imageView.getWidth()-sampledImage.width())/2;
+        int top=(imageView.getHeight()-sampledImage.height())/2;
+        int right=(imageView.getWidth()+sampledImage.width())/2;
+        int bottom=(imageView.getHeight()+sampledImage.height())/2;
+
+        for (Point c: extract){
+            if (c.x >= left && c.x <= right && c.y >= top && c.y<=bottom){
+                int projectedX = (int)c.x - left;
+                int projectedY = (int)c.y - top;
+                Point corner = new Point(projectedX, projectedY);
+                corners.add(corner);
+                if (corners.size()>4){
+                    corners.remove(0);
+                }
+            }
+        }
+        Mat out = sampledImage.clone();
+        for (Point c: corners){
+            Imgproc.circle(out, c, (int) 15, new Scalar(0, 0, 255), 3);
+        }
+
+//        if(event.getX()>=left && event.getX()<=right && event.getY()>=top && event.getY()<=bottom) {
+//            int projectedX = (int)event.getX()-left;
+//            int projectedY = (int)event.getY()-top;
+//            org.opencv.core.Point corner = new org.opencv.core.Point(projectedX, projectedY);
+//            corners.add(corner);
+//            if(corners.size()>4)
+//                corners.remove(0);
+//            Mat sampleImageCopy=sampledImage.clone();
+//            for(org.opencv.core.Point c : corners)
+//                Imgproc.circle(sampleImageCopy, c, (int) 5, new Scalar(0, 0, 255), 2);
+//            displayImage(sampleImageCopy);
+//        }
+
+//        Mat out = sampledImage.clone();
+//        for(org.opencv.core.Point c : corners)
+//            Imgproc.circle(out.clone(), c, (int) 10, new Scalar(0, 0, 255), 5);
+        if (corners.size()==4){
+            perspectiveTransform();
+        } else {
+            Toast.makeText(this, "Could not find enough 4 corners. Please select more corner!", Toast.LENGTH_LONG).show();
+            displayImage(out);
+        }
+
+        // perform perspective transform
+
+    }
+
+    private void perspectiveTransform(){
+        if(corners.size()<4){
+            Toast.makeText(getApplicationContext(),
+                    "It is necessary to choose 4 corners",
+                    Toast.LENGTH_SHORT).show();
+            return;
+        }
+        org.opencv.core.Point centroid=new org.opencv.core.Point(0,0);
+        for(org.opencv.core.Point point:corners)
+        {
+            centroid.x+=point.x;
+            centroid.y+=point.y;
+        }
+        centroid.x/=corners.size();
+        centroid.y/=corners.size();
+
+        sortCorners(corners,centroid);
+        Mat correctedImage=new Mat(sampledImage.rows(),sampledImage.cols(),sampledImage.type());
+        Mat srcPoints= Converters.vector_Point2f_to_Mat(corners);
+
+        Mat destPoints=Converters.vector_Point2f_to_Mat(Arrays.asList(new org.opencv.core.Point[]{
+                new org.opencv.core.Point(0, 0),
+                new org.opencv.core.Point(correctedImage.cols(), 0),
+                new org.opencv.core.Point(correctedImage.cols(),correctedImage.rows()),
+                new org.opencv.core.Point(0,correctedImage.rows())}));
+
+        Mat transformation=Imgproc.getPerspectiveTransform(srcPoints, destPoints);
+        Imgproc.warpPerspective(sampledImage, correctedImage, transformation, correctedImage.size());
+
+        corners.clear();
+        displayImage(correctedImage);
+    }
+
+    void sortCorners(ArrayList<Point> corners, org.opencv.core.Point center)
+    {
+        ArrayList<org.opencv.core.Point> top=new ArrayList<org.opencv.core.Point>();
+        ArrayList<org.opencv.core.Point> bottom=new ArrayList<org.opencv.core.Point>();
+
+        for (int i = 0; i < corners.size(); i++)
+        {
+            if (corners.get(i).y < center.y)
+                top.add(corners.get(i));
+            else
+                bottom.add(corners.get(i));
+        }
+
+        double topLeft=top.get(0).x;
+        int topLeftIndex=0;
+        for(int i=1;i<top.size();i++)
+        {
+            if(top.get(i).x<topLeft)
+            {
+                topLeft=top.get(i).x;
+                topLeftIndex=i;
+            }
+        }
+
+        double topRight=0;
+        int topRightIndex=0;
+        for(int i=0;i<top.size();i++)
+        {
+            if(top.get(i).x>topRight)
+            {
+                topRight=top.get(i).x;
+                topRightIndex=i;
+            }
+        }
+
+        double bottomLeft=bottom.get(0).x;
+        int bottomLeftIndex=0;
+        for(int i=1;i<bottom.size();i++)
+        {
+            if(bottom.get(i).x<bottomLeft)
+            {
+                bottomLeft=bottom.get(i).x;
+                bottomLeftIndex=i;
+            }
+        }
+
+        double bottomRight=bottom.get(0).x;
+        int bottomRightIndex=0;
+        for(int i=1;i<bottom.size();i++)
+        {
+            if(bottom.get(i).x>bottomRight)
+            {
+                bottomRight=bottom.get(i).x;
+                bottomRightIndex=i;
+            }
+        }
+
+        org.opencv.core.Point topLeftPoint = top.get(topLeftIndex);
+        org.opencv.core.Point topRightPoint = top.get(topRightIndex);
+        org.opencv.core.Point bottomLeftPoint = bottom.get(bottomLeftIndex);
+        org.opencv.core.Point bottomRightPoint = bottom.get(bottomRightIndex);
+
+        corners.clear();
+        corners.add(topLeftPoint);
+        corners.add(topRightPoint);
+        corners.add(bottomRightPoint);
+        corners.add(bottomLeftPoint);
+    }
 }

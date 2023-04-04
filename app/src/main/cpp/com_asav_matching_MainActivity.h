@@ -29,6 +29,13 @@ JNIEXPORT void JNICALL Java_com_asav_matching_MainActivity_extractPointsOfIntere
 JNIEXPORT void JNICALL Java_com_asav_matching_MainActivity_stitchImages
   (JNIEnv *, jclass, jlong, jlong, jlong);
 
+/*
+ * Class:     com_asav_processimage_OpenCVNativeCaller
+ * Method:    niBlackThreshold
+ * Signature: (JJ)V
+ */
+JNIEXPORT void JNICALL Java_com_asav_matching_MainActivity_niBlackThreshold
+        (JNIEnv *, jclass, jlong, jlong);
 
 #ifdef __cplusplus
 }
