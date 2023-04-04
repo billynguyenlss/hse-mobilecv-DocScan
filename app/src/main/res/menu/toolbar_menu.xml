@@ -45,5 +45,8 @@
         android:id="@+id/action_stitchimages"
         app:showAsAction="never"
         android:title="@string/action_StitchImages"/>
-
+    <item
+        android:id="@+id/action_stitchmultipleimages"
+        app:showAsAction="never"
+        android:title= "Stitching multiple images"/>
 </menu>

@@ -37,6 +37,14 @@ JNIEXPORT void JNICALL Java_com_asav_matching_MainActivity_stitchImages
 JNIEXPORT void JNICALL Java_com_asav_matching_MainActivity_niBlackThreshold
         (JNIEnv *, jclass, jlong, jlong);
 
+/*
+ * Class:     com_asav_matching_MainActivity
+ * Method:    stitchImages
+ * Signature: (JJJ)V
+ */
+JNIEXPORT void JNICALL Java_com_asav_matching_MainActivity_stitchMultipleImages
+        (JNIEnv *env, jclass, jlongArray, jlong);
+
 #ifdef __cplusplus
 }
 #endif

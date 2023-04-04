@@ -94,6 +94,8 @@ public class MainActivity extends AppCompatActivity {
 
     private static native void extractPointsOfInterest(long matAddrIn, long matAddrOut);
     private static native void stitchImages(long matAddrIn1,long matAddrIn2, long matAddrOut);
+    private static native void stitchMultipleImages(long[] matsAddrIn, long matAddrOut);
+
     private static native void niBlackThreshold(long matAddrIn, long matAddrOut);
     @SuppressLint("ClickableViewAccessibility")
     @Override
@@ -287,9 +289,10 @@ public class MainActivity extends AppCompatActivity {
     private static final int SELECT_PICTURE_STITCHING = 3;
 
     private static final int REQUEST_IMAGE_CAPTURE = 4;
-    private static final Uri locationForPhotos = null;
     private static final int SELECT_VIDEO = 5;
+    private static final int SELECT_MULTIPLE_IMAGES = 6;
     private String mCurrentPhotoPath=null;
+//    private List<long> matImgs = new ArrayList<long>();
 
     private File createImageFile() throws IOException {
         // Create an image file name
@@ -386,7 +389,8 @@ public class MainActivity extends AppCompatActivity {
             case R.id.action_noiseRemoving:
                 Toast.makeText(this,"perform action_noiseRemoving", Toast.LENGTH_LONG).show();
                 if (isImageLoaded()){
-                    bilateral();
+//                    bilateral();
+                    noise_removing();
                 }
                 return true;
             case R.id.action_manual_perspective_transform:
@@ -407,6 +411,14 @@ public class MainActivity extends AppCompatActivity {
                 if(isImageLoaded()) {
                     openImageFile(SELECT_PICTURE_STITCHING);
                 }
+                return true;
+
+            case R.id.action_stitchmultipleimages:
+                Intent intentStitchMulti = new Intent(Intent.ACTION_GET_CONTENT);
+                intentStitchMulti.setType("image/*"); //allows any image file type. Change * to specific extension to limit it
+//**The following line is the important one!
+                intentStitchMulti.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
+                startActivityForResult(Intent.createChooser(intentStitchMulti, "Select Multiple Picture"), SELECT_MULTIPLE_IMAGES);
                 return true;
             default:
                 // If we got here, the user's action was not recognized.
@@ -475,14 +487,44 @@ public class MainActivity extends AppCompatActivity {
             }
             else if (requestCode == SELECT_VIDEO) {
                 videoUri = data.getData();
-                Toast.makeText(MainActivity.this, "videoUri: " + videoUri.toString(), Toast.LENGTH_LONG).show();
-                Log.d(TAG, "videoUri: " + videoUri.toString());
-                mediaMetadataRetriever.setDataSource(MainActivity.this, videoUri);
-                videoView.setVideoURI(videoUri);
-                videoView.setVisibility(View.VISIBLE);
-                buttonSelectFrame.setVisibility(View.VISIBLE);
-                buttonCloseVideo.setVisibility(View.VISIBLE);
-                videoView.start();
+                if (videoUri != null){
+                    try {
+                        Log.d(TAG, "videoUri: " + videoUri.toString());
+                        mediaMetadataRetriever.setDataSource(MainActivity.this, videoUri);
+                        videoView.setVideoURI(videoUri);
+                        videoView.setVisibility(View.VISIBLE);
+                        buttonSelectFrame.setVisibility(View.VISIBLE);
+                        buttonCloseVideo.setVisibility(View.VISIBLE);
+                        videoView.start();
+                    } catch(Exception error){
+                        Toast.makeText(MainActivity.this, "Something broken!", Toast.LENGTH_LONG).show();
+                    }
+                }
+
+            }
+            else if (requestCode == SELECT_MULTIPLE_IMAGES){
+                Toast.makeText(MainActivity.this, "perform stitching multiple images", Toast.LENGTH_LONG).show();
+                if (data.getClipData() != null){
+                    try {
+                        int count = data.getClipData().getItemCount(); //evaluate the count before the for loop --- otherwise, the count is evaluated every loop.
+                        long[] matImgs = new long[count];
+
+                        for(int i = 0; i < count; i++) {
+                            Uri imageUri = data.getClipData().getItemAt(i).getUri();
+                            //do something with the image (save it to some directory or whatever you need to do with it here)
+                            Mat selectedImage = convertToMat(imageUri);
+                            matImgs[i] = selectedImage.getNativeObjAddr();
+                        }
+                        Mat output = new Mat();
+                        stitchMultipleImages(matImgs, output.getNativeObjAddr());
+                        displayImage(output);
+                    } catch (Exception error){
+                        Toast.makeText(MainActivity.this, "Could not stitch multiple image :(", Toast.LENGTH_LONG).show();
+                    }
+
+                } else {
+                    Toast.makeText(MainActivity.this, "Please select images!", Toast.LENGTH_LONG).show();
+                }
             }
         }
     }
@@ -871,6 +913,12 @@ public class MainActivity extends AppCompatActivity {
             niBlackThreshold(sampledImage.getNativeObjAddr(),binImage.getNativeObjAddr());
         }
         displayImage(binImage);
+    }
+
+    private void noise_removing(){
+        Mat out = new Mat();
+        Imgproc.medianBlur(sampledImage, out, 5);
+        displayImage(out);
     }
     private final boolean useColor=true;
     private void contrast(){
@@ -1314,5 +1362,9 @@ public class MainActivity extends AppCompatActivity {
         corners.add(topRightPoint);
         corners.add(bottomRightPoint);
         corners.add(bottomLeftPoint);
+    }
+
+    private void multipleStich(){
+
     }
 }

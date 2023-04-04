@@ -71,4 +71,51 @@ JNIEXPORT void JNICALL Java_com_asav_matching_MainActivity_niBlackThreshold
     cv::ximgproc::niBlackThreshold(grayImg,mOut,255, cv::THRESH_BINARY, 11,cv::ximgproc::BINARIZATION_NIBLACK  );
     LOGD("Java_com_asav_processimage_MainActivity_niBlackThreshold -- END");
 }
+JNIEXPORT void JNICALL Java_com_asav_matching_MainActivity_stitchMultipleImages
+        (JNIEnv *env, jclass, jlongArray matsAddrIn, jlong matAddrOut){
+    LOGD("Java_com_asav_matching_MainActivity_stitchImages -- BEGIN");
 
+//    std::vector<cv::Mat> trainimgs;
+    cv::Mat& mOut = *(cv::Mat*)matAddrOut;
+
+    jint retVal=0;
+    int num=0, temp=0;
+    jclass alCls = env->FindClass("org/opencv/core/Mat");
+    jmethodID jMatCons = env->GetMethodID(alCls,"<init>","()V");
+    jmethodID alGetId  = env->GetMethodID(alCls, "getNativeObjAddr", "()J");
+//    jmethodID sizeMethodID = env->GetMethodID(alCls, "size", "()I");
+
+    jlong *traindata = env->GetLongArrayElements(matsAddrIn,0);
+
+//    int intValue = *(int*) sizeMethodID;
+    jsize a_len = env->GetArrayLength(matsAddrIn);
+
+    std::vector<cv::Mat> natImgs;
+    for(int i = 0; i < a_len; i++){
+        try {
+            cv::Mat& mIn = *(cv::Mat*)traindata[i];
+            cv::Mat rgb;
+            cv::cvtColor(mIn, rgb, cv::COLOR_RGBA2RGB);
+            natImgs.push_back(rgb);
+        } catch (...) {
+            continue;
+        }
+
+    }
+    env->ReleaseLongArrayElements(matsAddrIn,traindata,0);
+
+    Ptr<cv::Stitcher> stitcher = cv::Stitcher::create(cv::Stitcher::SCANS);
+
+    if (natImgs.size()>0){
+        try {
+            Mat rgbOut;
+            cv::Stitcher::Status sts=stitcher->stitch(natImgs, rgbOut);
+            cv::cvtColor(rgbOut,mOut,cv::COLOR_RGB2RGBA);
+        } catch(...){
+            return;
+        }
+    }
+
+    LOGD("Java_com_asav_matching_MainActivity_stitchMultipleImages -- END");
+
+}
