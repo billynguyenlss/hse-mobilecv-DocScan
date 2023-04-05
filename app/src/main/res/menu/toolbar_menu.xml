@@ -49,4 +49,8 @@
         android:id="@+id/action_stitchmultipleimages"
         app:showAsAction="never"
         android:title= "Stitching multiple images"/>
+    <item
+        android:id="@+id/action_binarization_charThreshold"
+        app:showAsAction="never"
+        android:title="Binarization (char_threshold)"/>
 </menu>

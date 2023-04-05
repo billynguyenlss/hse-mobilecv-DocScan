@@ -2,6 +2,7 @@ package com.asav.matching;
 
 import static android.app.PendingIntent.getActivity;
 
+import static org.opencv.core.Core.BORDER_CONSTANT;
 import static org.opencv.core.Core.DFT_SCALE;
 import static org.opencv.core.CvType.CV_32FC1;
 import static org.opencv.core.CvType.CV_8U;
@@ -95,6 +96,7 @@ public class MainActivity extends AppCompatActivity {
     private static native void extractPointsOfInterest(long matAddrIn, long matAddrOut);
     private static native void stitchImages(long matAddrIn1,long matAddrIn2, long matAddrOut);
     private static native void stitchMultipleImages(long[] matsAddrIn, long matAddrOut);
+
 
     private static native void niBlackThreshold(long matAddrIn, long matAddrOut);
     @SuppressLint("ClickableViewAccessibility")
@@ -344,7 +346,7 @@ public class MainActivity extends AppCompatActivity {
 //                    Toast.makeText(MainActivity.this, "intent uri:" + mCurrentPhotoPath, Toast.LENGTH_LONG).show();
 //                    Log.i(TAG, "inside intent called - mCurrentPhotoPath:" + mCurrentPhotoPath);
 
-                    startActivityForResult(Intent.createChooser(takePictureIntent,"Take Picture from Camera"),
+                    startActivityForResult(Intent.createChooser(takePictureIntent,"Photo saved to Gallery"),
                             REQUEST_IMAGE_CAPTURE);
                 }
 
@@ -353,7 +355,7 @@ public class MainActivity extends AppCompatActivity {
                 return true;
 
             case R.id.action_getFrameFromVideo:
-                Toast.makeText(this,"perform action_getFrameFromVideo", Toast.LENGTH_LONG).show();
+//                Toast.makeText(this,"perform action_getFrameFromVideo", Toast.LENGTH_LONG).show();
                 videoUri = null;
 
                 Intent intent = new Intent();
@@ -362,10 +364,12 @@ public class MainActivity extends AppCompatActivity {
                 startActivityForResult(Intent.createChooser(intent,"Select Video"),SELECT_VIDEO);
                 return true;
             case R.id.action_saveImageToGallery:
-                Toast.makeText(this,"perform action_saveImageToGallery", Toast.LENGTH_LONG).show();
                 if (isImageLoaded()){
                     Bitmap bitmap = ((BitmapDrawable)imageView.getDrawable()).getBitmap();
                     storeImage(bitmap);
+                    Toast.makeText(this,"Image saved to Gallery", Toast.LENGTH_LONG).show();
+                } else {
+                    Toast.makeText(this,"Image is not loaded :(", Toast.LENGTH_LONG).show();
                 }
                 return true;
             case R.id.action_binarization:
@@ -395,7 +399,7 @@ public class MainActivity extends AppCompatActivity {
                 return true;
             case R.id.action_manual_perspective_transform:
                 if(isImageLoaded()) {
-                    Toast.makeText(this,"perform action_extract Point of Interests", Toast.LENGTH_LONG).show();
+                    Toast.makeText(this,"perform manual perspective transform", Toast.LENGTH_LONG).show();
                     // This function has some unknown error and not debug yet.
                     perspectiveTransform();
                 }
@@ -416,9 +420,15 @@ public class MainActivity extends AppCompatActivity {
             case R.id.action_stitchmultipleimages:
                 Intent intentStitchMulti = new Intent(Intent.ACTION_GET_CONTENT);
                 intentStitchMulti.setType("image/*"); //allows any image file type. Change * to specific extension to limit it
-//**The following line is the important one!
+                //**The following line is the important one!
                 intentStitchMulti.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
                 startActivityForResult(Intent.createChooser(intentStitchMulti, "Select Multiple Picture"), SELECT_MULTIPLE_IMAGES);
+                return true;
+            case R.id.action_binarization_charThreshold:
+                if (isImageLoaded()){
+                    Toast.makeText(this,"perform binarization with char_threshold", Toast.LENGTH_LONG).show();
+                    binary_with_char_threshold();
+                }
                 return true;
             default:
                 // If we got here, the user's action was not recognized.
@@ -426,6 +436,7 @@ public class MainActivity extends AppCompatActivity {
                 return super.onOptionsItemSelected(item);
         }
     }
+
     private boolean isImageLoaded(){
         if(sampledImage==null)
             Toast.makeText(getApplicationContext(),
@@ -906,12 +917,61 @@ public class MainActivity extends AppCompatActivity {
 
             //Imgproc.adaptiveThreshold(grayImage, binImage, 255, Imgproc.ADAPTIVE_THRESH_GAUSSIAN_C, Imgproc.THRESH_BINARY, 15, 12);
             //Imgproc.threshold(grayImage,binImage,128,255,Imgproc.THRESH_BINARY);
-            Imgproc.threshold(grayImage,binImage,0,255,Imgproc.THRESH_BINARY+Imgproc.THRESH_OTSU);
+            Imgproc.threshold(grayImage,binImage,150,255,Imgproc.THRESH_BINARY+Imgproc.THRESH_OTSU);
         }
         else{
 //            OpenCVNativeCaller.niBlackThreshold(sampledImage.getNativeObjAddr(),binImage.getNativeObjAddr());
             niBlackThreshold(sampledImage.getNativeObjAddr(),binImage.getNativeObjAddr());
         }
+        displayImage(binImage);
+    }
+
+    private int char_threshold(int sigma, double percent, int k){
+        Mat grayImage = new Mat();
+        Imgproc.cvtColor(sampledImage, grayImage, Imgproc.COLOR_RGB2GRAY);
+        Mat gHist = new Mat();
+        int histSize = 256;
+        float[] range = {0, 256}; //the upper boundary is exclusive
+        MatOfFloat histRange = new MatOfFloat(range);
+        boolean accumulate = false;
+        List<Mat> bgrPlanes = new ArrayList<>();
+        bgrPlanes.add(grayImage);
+        Imgproc.calcHist(bgrPlanes, new MatOfInt(0), new Mat(), gHist, new MatOfInt(histSize), histRange, accumulate);
+
+
+        for (int i = 0; i < k; i++){
+            Imgproc.GaussianBlur(gHist, gHist, new Size(sigma,sigma),0,0, BORDER_CONSTANT);
+        }
+        Core.MinMaxLocResult res =Core.minMaxLoc(gHist);
+        double minVal = res.minVal;
+        double maxVal = res.maxVal;
+        double maxLocX = res.maxLoc.x;
+        double maxLocY = res.maxLoc.y;
+        int threshold = (int)maxLocY;
+        double lh = (double)(gHist.get(threshold, 0)[0]*100.0);
+        double rh = (double)(maxVal*(100.0 - percent));
+        while (lh >= rh){
+            threshold -= (int)1;
+            lh = (double)(gHist.get(threshold, 0)[0]*100.0);
+            rh = (double)(maxVal*(100.0 - percent));
+
+            if (threshold==0){
+                break;
+            }
+        }
+        return threshold;
+    }
+    private void binary_with_char_threshold() {
+        int sigma = 5;
+        double percent = 95.0;
+        int k = 5;
+        int threshold = char_threshold(sigma, percent, k);
+        Mat grayImage = new Mat();
+        Imgproc.cvtColor(sampledImage, grayImage, Imgproc.COLOR_RGB2GRAY);
+        Imgproc.GaussianBlur(grayImage,grayImage,new Size(5,5),0,0);
+
+        Mat binImage = new Mat();
+        Imgproc.threshold(grayImage,binImage,0,255,Imgproc.THRESH_BINARY+Imgproc.THRESH_OTSU);
         displayImage(binImage);
     }
 
@@ -1210,6 +1270,7 @@ public class MainActivity extends AppCompatActivity {
         Imgproc.findContours(canny, contours, hierarchy, Imgproc.RETR_TREE, Imgproc.CHAIN_APPROX_SIMPLE);
 
         if (contours.size() == 0){
+            Toast.makeText(this, "No contour found :(", Toast.LENGTH_LONG).show();
             return;
         }
         contours.sort(new Comparator<MatOfPoint>() {
